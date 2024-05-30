@@ -31,6 +31,9 @@ func testSheetWith(t *testing.T, sheetName string, groupPrefix string, groupSuff
 		SubmissionTime: "12:00:00",
 		Source:         "UnitTest",
 	}
+	pkg.Footer = model.PkgFooter{
+		RequestCount: int16(len(pkg.Requests)),
+	}
 	out, _ := xml.MarshalIndent(pkg, "", "    ")
 	got := string(out)
 	fmt.Println(got)

@@ -152,9 +152,6 @@ func (pi *ParseInstruction) ParsePackageRequests(xlsx string) (*model.Pkg, error
 			}
 		}
 	}
-	ret.Footer = model.PkgFooter{
-		RequestCount: int16(len(ret.Requests)),
-	}
 	return ret, nil
 }
 
