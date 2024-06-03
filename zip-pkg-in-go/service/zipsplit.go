@@ -116,7 +116,7 @@ func (zi *ZipInstruction) zipFiles(requests []model.Request, seq int) error {
 			SubmissionTime: time.Now().Format("15:04:05"),
 			Source:         zi.SourceID,
 		},
-		Footer: model.PkgFooter{
+		Trailer: model.PkgTrailer{
 			RequestCount: int16(len(requests)),
 		},
 		Requests: requests,

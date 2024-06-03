@@ -68,7 +68,7 @@
             </Metadata>
         </Request>
     </Requests>
-    <Footer>
+    <Trailer>
         <RequestCount>2</RequestCount>
-    </Footer>
+    </Trailer>
 </Package>

@@ -1,11 +1,18 @@
-<Package ID="123">
+<REPORT ID="123">
     <Header>
         <SubmissionDate>2020-01-01</SubmissionDate>
-        <SubmissionTime>12:00:00</SubmissionTime>
-        <Source>UnitTest</Source>
+        <SubmissionTime>11:18:23</SubmissionTime>
+        <RequestApplication>unit-test</RequestApplication>
+        <PackageName>gz-unit-test-01.zip</PackageName>
+        <ContentType>ABC8789</ContentType>
+        <ProcessingDuration>00:00:02.883</ProcessingDuration>
+        <ProcessingDate>2020-08-08</ProcessingDate>
+        <ProcessingTime>12:25:18</ProcessingTime>
     </Header>
-    <Requests>
-        <Request ID="1" FileName="David-Passport.pdf" MimeType="application/pdf" DocName="Passport">
+    <Documents>
+        <Document ID="1" FileName="David-Passport.pdf">
+            <Status>Succeeded</Status>
+            <ContentID>A73jdf83838D</ContentID>
             <Metadata>
                 <Tag>
                     <Name>FirstName</Name>
@@ -53,8 +60,10 @@
                     </Tag>
                 </TagGroup>
             </Metadata>
-        </Request>
-        <Request ID="2" FileName="Linda-DriverLicense.png" MimeType="image/png" DocName="Driver License">
+        </Document>
+        <Document ID="2" FileName="Linda-DriverLicense.png">
+            <Status>Succeeded</Status>
+            <ContentID>A73jdf83839D</ContentID>
             <Metadata>
                 <Tag>
                     <Name>FirstName</Name>
@@ -106,9 +115,16 @@
                     </Tag>
                 </TagGroup>
             </Metadata>
-        </Request>
-    </Requests>
+        </Document>
+        <Document ID="3" FileName="pp-1006.pdf">
+            <Status>Failed</Status>
+            <ErrorCode>8738</ErrorCode>
+            <ErrorMessage>Invalid file format</ErrorMessage>
+        </Document>
+    </Documents>
     <Trailer>
-        <RequestCount>2</RequestCount>
+        <DocumentCount>3</DocumentCount>
+        <SuccessCount>2</SuccessCount>
+        <ErrorCount>1</ErrorCount>
     </Trailer>
-</Package>
+</REPORT>

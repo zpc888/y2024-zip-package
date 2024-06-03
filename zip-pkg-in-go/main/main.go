@@ -4,6 +4,7 @@ import (
 	"bufio"
 	_ "flag"
 	"fmt"
+	"github.com/xuri/excelize/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ func main() {
 		usage()
 		os.Exit(1)
 	}
-	var cmd, fileDir, outDir, reportDir, xls, config, sheetName string = "", "sources", "output", "report", "metadata.xlsx", "config.properties", "Sheet1"
+	var cmd, fileDir, outDir, reportDir, fileEndsWith, xls, config, sheetName string = "", "sources", "output", "report", ".xml", "metadata.xlsx", "config.properties", "Sheet1"
 	unzip := true
 	for i := 1; i < len(os.Args); i += 2 {
 		switch os.Args[i] {
@@ -32,6 +33,8 @@ func main() {
 			xls = os.Args[i+1]
 		case "--config":
 			config = os.Args[i+1]
+		case "--report-file-ends-with":
+			fileEndsWith = os.Args[i+1]
 		case "--unzip":
 			unzip = os.Args[i+1] != "false"
 		case "--sheet-name":
@@ -46,7 +49,7 @@ func main() {
 		duration := time.Since(start)
 		fmt.Printf("Duration: %v\n", duration)
 	} else if cmd == "reconcile" {
-		reconcile(reportDir, outDir, xls, config, sheetName)
+		reconcile(reportDir, fileEndsWith, outDir, xls, config, sheetName)
 		duration := time.Since(start)
 		fmt.Printf("Duration: %v\n", duration)
 	} else {
@@ -159,13 +162,35 @@ func configParseInstructure(pi *service.ParseInstruction, cfg *map[string]string
 	}
 }
 
-func reconcile(reportDir, outDir, xls, config, sheetName string) {
-	fmt.Printf("reconcile: %s %s %s %s %s\n", reportDir, outDir, xls, config, sheetName)
+func reconcile(reportDir, fileEndsWith, outDir, xls, config, sheetName string) {
+	fmt.Printf("reconcile: %s %s %s %s %s %s\n", reportDir, outDir, fileEndsWith, xls, config, sheetName)
+	cfg := loadConfig(config)
+	pi := service.NewParseInstruction()
+	pi.SheetName = sheetName
+	configParseInstructure(pi, cfg)
+	pkg, err := pi.ParsePackageRequests(xls)
+	if err != nil || pkg == nil {
+		fmt.Printf("ParsePackageExcel failed or no requests at all: %v\n", err)
+		return
+	}
+	fmt.Println("Parse success and get requests: ", len(pkg.Requests))
+	ri := service.NewReconcileInstruction()
+	ri.ReportDir = reportDir
+	ri.OutDir = outDir
+	ri.ReportFileEndsWith = fileEndsWith
+	reconcileResults, _ := ri.Reconcile(pkg)
+	fmt.Println("Reconcile success and get results: ", len(*reconcileResults))
+	colHeaders := pi.ExtractRequestHeaders(xls)
+	outXls := excelize.NewFile()
+	ri.OutputExcel(reconcileResults, colHeaders, outXls)
+	targetFile := outDir + "/reconcile-result--" + sheetName + ".xlsx"
+	fmt.Println("Output to: ", targetFile)
+	outXls.SaveAs(targetFile)
 }
 
 func usage() {
 	fmt.Printf("Usage: %s --command package --file-dir path/to/input-files --out-dir path/to/output-zip --xls path/to/meta-excel-file --config path/to/config-file --sheet-name default-1st-sheet --unzip true-or-false\n", os.Args[0])
-	fmt.Printf("     : %s --command reconcile --report-dir path/to/report --out-dir path/to/reconcile-report --xls path/to/meta-excel-file --config path/to/config-file --sheet-name default-1st-sheet\n", os.Args[0])
+	fmt.Printf("     : %s --command reconcile --report-dir path/to/report --report-file-ends-with .xml --out-dir path/to/reconcile-report --xls path/to/meta-excel-file --config path/to/config-file --sheet-name default-1st-sheet\n", os.Args[0])
 }
 
 func loadConfig(cfgFile string) *map[string]string {

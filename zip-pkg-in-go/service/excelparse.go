@@ -19,36 +19,36 @@ type ParseInstruction struct {
 	SheetName               string
 }
 
-type colHeader struct {
+type ColHeader struct {
 	index     int
-	rawName   string
-	kind      int8 // 1: skip, 2: filename, 3: mimetype, 4: docname 5: id 10: tag 20: group tag
-	groupId   string
-	groupName string
-	tagName   string
+	RawName   string
+	Kind      int8 // 1: skip, 2: filename, 3: mimetype, 4: docname 5: id 10: tag 20: group tag
+	GroupId   string
+	GroupName string
+	TagName   string
 }
 
-func (pi *ParseInstruction) parseColHeader(index int, value string) *colHeader {
+func (pi *ParseInstruction) parseColHeader(index int, value string) *ColHeader {
 	if value == "" {
 		return nil
 	}
-	ret := &colHeader{
+	ret := &ColHeader{
 		index:   index,
-		rawName: value,
+		RawName: value,
 	}
-	ret.tagName = value
+	ret.TagName = value
 	if value == "Skip" {
-		ret.kind = 1
+		ret.Kind = 1
 	} else if value == "FileName" {
-		ret.kind = 2
+		ret.Kind = 2
 	} else if value == "MimeType" {
-		ret.kind = 3
+		ret.Kind = 3
 	} else if value == "DocName" {
-		ret.kind = 4
+		ret.Kind = 4
 	} else if value == "RefID" {
-		ret.kind = 5
+		ret.Kind = 5
 	} else {
-		ret.kind = 10 // tag
+		ret.Kind = 10 // tag
 		if strings.HasPrefix(value, pi.groupPrefix) {
 			noPrefix := value[len(pi.groupPrefix):]
 			idx := strings.Index(noPrefix, pi.groupSuffix)
@@ -58,13 +58,13 @@ func (pi *ParseInstruction) parseColHeader(index int, value string) *colHeader {
 				if group != "" && tag != "" {
 					idx2 := strings.Index(group, pi.groupIdNameDelimiter)
 					if idx2 != -1 && idx2 != 0 && idx2 != len(group)-1 {
-						ret.groupId = strings.TrimSpace(group[:idx2])
-						ret.groupName = strings.TrimSpace(group[idx2+len(pi.groupIdNameDelimiter):])
+						ret.GroupId = strings.TrimSpace(group[:idx2])
+						ret.GroupName = strings.TrimSpace(group[idx2+len(pi.groupIdNameDelimiter):])
 					} else {
-						ret.groupName = group
+						ret.GroupName = group
 					}
-					ret.tagName = tag
-					ret.kind = 20 // group tag
+					ret.TagName = tag
+					ret.Kind = 20 // group tag
 				}
 			}
 		}
@@ -100,6 +100,20 @@ func (pi *ParseInstruction) SetGroupIdNameDelimiter(delim string) {
 	pi.groupIdNameDelimiter = delim
 }
 
+func (pi *ParseInstruction) ExtractRequestHeaders(xlsx string) *[]ColHeader {
+	// because parse Request happens before, it has no issue when reaching here
+	f, _ := excelize.OpenFile(xlsx)
+	defer func() {
+		_ = f.Close()
+	}()
+	rows, _ := f.GetRows(pi.SheetName)
+	var headers []ColHeader = make([]ColHeader, 0)
+	_ = pi.parseHeaderRow(rows[0], func(validHeader *ColHeader, colNum int) {
+		headers = append(headers, *validHeader)
+	})
+	return &headers
+}
+
 func (pi *ParseInstruction) ParsePackageRequests(xlsx string) (*model.Pkg, error) {
 	f, err := excelize.OpenFile(xlsx)
 	if err != nil {
@@ -119,13 +133,15 @@ func (pi *ParseInstruction) ParsePackageRequests(xlsx string) (*model.Pkg, error
 	ret := &model.Pkg{}
 	ret.Requests = make([]model.Request, 0)
 
-	var headerMap map[int]*colHeader = make(map[int]*colHeader)
+	var headerMap map[int]*ColHeader = make(map[int]*ColHeader)
 	var continueEmptyRowCount int8 = 0
 	var maxColIdx = 0
 	var seq = 0
 	for i, row := range rows {
 		if i == 0 { // header row
-			maxColIdx = pi.parseHeaderRow(row, headerMap)
+			maxColIdx = pi.parseHeaderRow(row, func(validHeader *ColHeader, colNum int) {
+				headerMap[colNum] = validHeader
+			})
 		} else {
 			req, status := pi.buildRequestAndStatus(row, &headerMap, maxColIdx)
 			if status == 2 { // empty row
@@ -155,7 +171,7 @@ func (pi *ParseInstruction) ParsePackageRequests(xlsx string) (*model.Pkg, error
 	return ret, nil
 }
 
-func (pi *ParseInstruction) buildRequestAndStatus(row []string, headerMap *map[int]*colHeader, maxColIdx int) (*model.Request, int8) {
+func (pi *ParseInstruction) buildRequestAndStatus(row []string, headerMap *map[int]*ColHeader, maxColIdx int) (*model.Request, int8) {
 	req := &model.Request{
 		Metadata: &model.Metadata{},
 	}
@@ -170,33 +186,33 @@ func (pi *ParseInstruction) buildRequestAndStatus(row []string, headerMap *map[i
 		}
 		if header, ok := (*headerMap)[j]; ok {
 			status = 0
-			if header.kind == 1 && (strings.EqualFold(col, "yes") || strings.EqualFold(col, "true")) {
+			if header.Kind == 1 && (strings.EqualFold(col, "yes") || strings.EqualFold(col, "true")) {
 				status = 1
 				break
 			}
-			if header.kind == 2 {
+			if header.Kind == 2 {
 				req.FileName = col
-			} else if header.kind == 3 {
+			} else if header.Kind == 3 {
 				req.MimeType = col
-			} else if header.kind == 4 {
+			} else if header.Kind == 4 {
 				req.DocName = col
-			} else if header.kind == 5 {
+			} else if header.Kind == 5 {
 				req.ID = col
 			} else {
-				req.Metadata.AddTagOrGroupTag(header.groupId, header.groupName, header.tagName, col)
+				req.Metadata.AddTagOrGroupTag(header.GroupId, header.GroupName, header.TagName, col)
 			}
 		}
 	}
 	return req, status
 }
 
-func (pi *ParseInstruction) parseHeaderRow(row []string, headerMap map[int]*colHeader) int {
+func (pi *ParseInstruction) parseHeaderRow(row []string, consumer func(validHeader *ColHeader, colNum int)) int {
 	var maxColIdx int = -1
 	var continueEmptyColCount int8 = 0
 	for j, cell := range row {
 		header := pi.parseColHeader(j, strings.TrimSpace(cell))
 		if header != nil {
-			headerMap[j] = header
+			consumer(header, j)
 			maxColIdx = j
 			continueEmptyColCount = 0
 		} else {

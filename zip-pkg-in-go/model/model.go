@@ -78,13 +78,40 @@ type Request struct {
 	Metadata *Metadata `xml:",omitempty"`
 }
 
+func (r *Request) GetTagValue(name string) string {
+	if r.Metadata == nil || r.Metadata.Tags == nil {
+		return ""
+	}
+	return doGetTagValue(&r.Metadata.Tags, name)
+}
+
+func doGetTagValue(tags *[]Tag, name string) string {
+	for _, tag := range *tags {
+		if tag.Name == name {
+			return tag.Value
+		}
+	}
+	return ""
+}
+
+func (r *Request) GetTagGroupValue(groupId string, groupName string, tagName string) string {
+	if r.Metadata == nil || r.Metadata.TagGroups == nil {
+		return ""
+	}
+	tagGroup := r.Metadata.locateOrCreateTagGroup(groupId, groupName)
+	if tagGroup == nil || tagGroup.Tags == nil {
+		return ""
+	}
+	return doGetTagValue(&tagGroup.Tags, tagName)
+}
+
 type PkgHeader struct {
 	SubmissionDate string
 	SubmissionTime string
 	Source         string
 }
 
-type PkgFooter struct {
+type PkgTrailer struct {
 	RequestCount int16
 }
 
@@ -93,5 +120,40 @@ type Pkg struct {
 	ID       string   `xml:"ID,attr"`
 	Header   PkgHeader
 	Requests []Request `xml:"Requests>Request"`
-	Footer   PkgFooter
+	Trailer  PkgTrailer
+}
+
+type Report struct {
+	XMLName   xml.Name `xml:"REPORT"`
+	ID        string   `xml:"ID,attr"`
+	Header    ReportHeader
+	Documents []ReportDocument `xml:"Documents>Document"`
+	Trailer   ReportTrailer
+}
+
+type ReportHeader struct {
+	SubmissionDate     string
+	SubmissionTime     string
+	RequestApplication string
+	PackageName        string
+	ContentType        string
+	ProcessingDuration string
+	ProcessingDate     string
+	ProcessingTime     string
+}
+
+type ReportTrailer struct {
+	DocumentCount int
+	SuccessCount  int
+	ErrorCount    int
+}
+
+type ReportDocument struct {
+	ID           string    `xml:",attr"`
+	FileName     string    `xml:",attr"`
+	Status       string    // Succeeded, Failed
+	ContentID    string    `xml:",omitempty"`
+	ErrorCode    string    `xml:",omitempty"`
+	ErrorMessage string    `xml:",omitempty"`
+	Metadata     *Metadata `xml:",omitempty"`
 }

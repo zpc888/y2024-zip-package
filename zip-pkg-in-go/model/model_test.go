@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -279,7 +280,7 @@ func TestPkg01(t *testing.T) {
 			*req1,
 			*req2,
 		},
-		Footer: PkgFooter{
+		Trailer: PkgTrailer{
 			RequestCount: 2,
 		},
 	}
@@ -366,4 +367,55 @@ func makeContactTagGroup() *TagGroup {
 		Tags:      *contacttags,
 	}
 	return tagGroup
+}
+
+func TestSliceType(t *testing.T) {
+	// slice type
+	sliceType := make([]int, 0)
+	fmt.Println("sliceType: ", sliceType)
+	sliceType2 := append(sliceType, 10)
+	fmt.Println("sliceType: ", sliceType)
+	fmt.Println("sliceType 2: ", sliceType2)
+	slieAppend(sliceType, 20)
+	if len(sliceType) != 0 {
+		t.Errorf("sliceType is not empty since slice is passed by value, no matter how you change it in the function, the original slice value is not changed after the call")
+	}
+	fmt.Println("sliceType after calling sliceAppend(): ", sliceType)
+	fmt.Printf("sliceType: %T\n", sliceType)
+	if reflect.ValueOf(sliceType).Kind() != reflect.Slice {
+		t.Errorf("sliceType is not a slice type")
+	} else {
+		fmt.Println("sliceType is a slice type")
+	}
+}
+
+func TestMapType(t *testing.T) {
+	// map type
+	mapType := make(map[string]int)
+	fmt.Println("mapType: ", mapType)
+	mapType["key"] = 100
+	fmt.Println("mapType: ", mapType)
+	mapAdd(mapType, "key2", 200)
+	fmt.Println("mapType: ", mapType)
+	if len(mapType) != 2 {
+		t.Errorf("mapType is not changed since map is passed by reference, so that in main method, the original map value is changed after calling a function which addes value to the map parameter")
+	}
+	fmt.Printf("mapType: %T\n", mapType)
+	if reflect.ValueOf(mapType).Kind() != reflect.Map {
+		t.Errorf("mapType is not a map type")
+	} else {
+		fmt.Println("mapType is a map type")
+	}
+}
+
+// slice is passed by value, so that in main method, the original slice value is not changed after the call
+func slieAppend(sliceType []int, value int) {
+	sliceType = append(sliceType, value)
+	fmt.Println("sliceAppend(): sliceType: ", sliceType)
+}
+
+// map is passed by reference, so that in main method, the original map value is changed after the call
+func mapAdd(mapType map[string]int, key string, value int) {
+	mapType[key] = value
+	fmt.Println("mapAdd(): mapType: ", mapType)
 }
