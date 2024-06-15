@@ -2,17 +2,106 @@ package main
 
 import (
 	"bufio"
-	_ "flag"
 	"fmt"
+	"github.com/urfave/cli/v2"
 	"github.com/xuri/excelize/v2"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
 	"zip-pkg-in-go/service"
 )
 
 func main() {
+	useCliPkg()
+}
+
+func useCliPkg() {
+	excelFile := ""
+	sheetName := ""
+	configFile := ""
+	outDir := ""
+	app := &cli.App{
+		HelpName: "Package files into zip or reconcile reports",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "excel",
+				Usage:       "path to the excel file",
+				Required:    true,
+				Destination: &excelFile,
+			},
+			&cli.StringFlag{
+				Name:        "sheet",
+				Usage:       "sheet name",
+				Destination: &sheetName,
+				DefaultText: "Sheet1",
+			},
+			&cli.StringFlag{
+				Name:        "config",
+				Usage:       "path to excel-parse config `FILE`",
+				DefaultText: "config.properties",
+				Destination: &configFile,
+			},
+			&cli.StringFlag{
+				Name:        "out",
+				Usage:       "output dir",
+				DefaultText: "output",
+				Destination: &outDir,
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:  "package",
+				Usage: "zip files with xml metadata",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "pdf-dir",
+						Usage:       "path to `PDF` files",
+						DefaultText: "sources",
+					},
+					&cli.BoolFlag{
+						Name:  "unzip-off",
+						Usage: "no unzip",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					start := time.Now()
+					pkg(c.String("pdf-dir"), outDir, excelFile, configFile, sheetName, !c.Bool("unzip-off"))
+					fmt.Printf("Duration: %v\n", time.Since(start))
+					return nil
+				},
+			},
+			{
+				Name:  "reconcile",
+				Usage: "reconcile reports",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "report-dir",
+						Usage:       "path to `REPORT` files",
+						DefaultText: "report",
+					},
+					&cli.StringFlag{
+						Name:        "report-file-ends-with",
+						DefaultText: ".xml",
+					},
+				},
+				Action: func(context *cli.Context) error {
+					start := time.Now()
+					reconcile(context.String("report-dir"), context.String("report-file-ends-with"), outDir, excelFile, configFile, sheetName)
+					fmt.Printf("Duration: %v\n", time.Since(start))
+					return nil
+				},
+			},
+		},
+	}
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func parseArgManually() {
 	if len(os.Args) == 1 || os.Args[1] == "--help" || os.Args[1] == "-h" || len(os.Args)%2 == 0 {
 		usage()
 		os.Exit(1)
