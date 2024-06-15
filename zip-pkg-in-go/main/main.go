@@ -24,7 +24,7 @@ func useCliPkg() {
 	configFile := ""
 	outDir := ""
 	app := &cli.App{
-		HelpName: "Package files into zip or reconcile reports",
+		Usage: "Package files into zip or reconcile reports",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "excel",
